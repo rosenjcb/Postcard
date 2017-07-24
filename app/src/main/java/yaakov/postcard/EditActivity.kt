@@ -1,69 +1,161 @@
 package yaakov.postcard
 
+import android.content.Context
+import android.graphics.Canvas
+import android.graphics.Color
+import android.graphics.Matrix
+import android.graphics.Paint
 import android.support.v7.app.AppCompatActivity
 import android.os.Bundle
-import android.widget.ImageView
-import android.graphics.Bitmap
-import android.graphics.BitmapFactory
 import android.net.Uri
+import android.os.Handler
+import android.os.Message
+import android.provider.MediaStore
 import android.util.Log
+import android.view.MotionEvent
+import android.view.View
 import org.opencv.android.OpenCVLoader
-import org.opencv.core.Mat
-import org.opencv.core.Core
-import org.opencv.core.MatOfRect
-import org.opencv.core.Point
-import org.opencv.core.Rect
-import org.opencv.core.Scalar
-import org.opencv.imgcodecs.Imgcodecs
+import org.opencv.android.Utils
+import org.opencv.core.*
 import org.opencv.imgproc.Imgproc
-import org.opencv.core.Core.BORDER_DEFAULT
-import org.opencv.core.CvType.CV_16S
+import kotlinx.android.synthetic.main.activity_edit.foreground
+import android.support.v7.widget.AppCompatImageView
+import android.util.AttributeSet
+import android.widget.Toast
+
 
 var selectedImage: Uri = Uri.EMPTY
-
+var initCoords = FloatArray(2)
+var finCoords = FloatArray(2)
 
 class EditActivity : AppCompatActivity() {
 
-    private lateinit var foregroundImg: ImageView
+    lateinit var foreground: DrawImageView
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_edit)
 
+        foreground = findViewById(R.id.foreground) as DrawImageView
 
         if(!OpenCVLoader.initDebug()) {
-            Log.d("Shit", "Can't load OpenCV :(")
+            Log.d("Status", "Can't load OpenCV :(")
         } else {
-            Log.d("Shit", "OpenCV Loaded")
+            Log.d("Status", "OpenCV Loaded")
         }
 
-        foregroundImg = findViewById(R.id.foregroundImg) as ImageView
 
         if(intent.hasExtra("uri")){
             selectedImage = intent.getParcelableExtra("uri")
-            foregroundImg.setImageURI(selectedImage)
-        }
+            foreground.setImageURI(selectedImage)
+            foreground.setOnTouchListener { v, event ->
+                var debugBool = false
+                val drawView = v as DrawImageView
+                val inverse = Matrix()
+                //foreground.imageMatrix.invert(inverse)
+                when (event.action){
+                    MotionEvent.ACTION_DOWN -> {
+                        drawView.left = event.x
+                        drawView.top = event.y
+                        initCoords = floatArrayOf(event.x, event.y)
+                        foreground.imageMatrix.invert(inverse)
+                        inverse.postTranslate(foreground.scrollX.toFloat(), foreground.scrollY.toFloat())
+                        inverse.mapPoints(initCoords)
+                    }
 
+                    MotionEvent.ACTION_MOVE -> {
+                        drawView.right = event.x
+                        drawView.bottom = event.y
+                    }
+
+                    MotionEvent.ACTION_UP -> {
+                        drawView.right = event.x
+                        drawView.bottom = event.y
+                        finCoords = floatArrayOf(event.x, event.y)
+                        foreground.imageMatrix.invert(inverse)
+                        inverse.postTranslate(foreground.scrollX.toFloat(), foreground.scrollY.toFloat())
+                        inverse.mapPoints(finCoords)
+                        debugBool = true
+                    }
+                }
+                if(debugBool == true) {
+                    Log.d("Shit", initCoords[0].toString())
+                    Log.d("Shit", initCoords[1].toString())
+                    Log.d("Shit", finCoords[0].toString())
+                    Log.d("Shit", finCoords[1].toString())
+                    debugBool = false
+                }
+                drawView.invalidate()
+                drawView.drawRect = true
+                /*inverse.postTranslate(drawView.x, drawView.y)
+                inverse.mapPoints(initCoords)
+                inverse.mapPoints(finCoords)*/
+                true
+            }
+        }
     }
 
-    fun sobel(gray: Mat): Mat {
+    /*override fun onTouchEvent(event: MotionEvent): Boolean {
 
-        //Imgcodecs.imread(selectedImage.toString())
-        val edges: Mat = Mat(0,0,0)
-        val scale: Double = 1.0
-        val delta: Double = 0.0
-        val ddepth = CV_16S
-        val edges_x: Mat = Mat(0,0,0)
-        val edges_y: Mat = Mat(0,0,0)
-        val abs_edges_x: Mat = Mat(0,0,0)
-        val abs_edges_y: Mat = Mat(0,0,0)
-        Imgproc.Sobel(gray, edges_x, ddepth, 1, 0, 3, scale, delta, BORDER_DEFAULT)
-        Core.convertScaleAbs(edges_x, abs_edges_x)
-        Imgproc.Sobel(gray, edges_y, ddepth, 0, 1, 3, scale, delta, BORDER_DEFAULT)
-        Core.convertScaleAbs(edges_y, abs_edges_y)
-        Core.addWeighted(abs_edges_x, 0.5, abs_edges_y, 0.5, 0.0, edges)
+        when (event.action){
+            MotionEvent.ACTION_DOWN -> {
+                floatArrayOf(event.x, event.y)
+            }
 
-        return edges
+            MotionEvent.ACTION_UP -> {
+                floatArrayOf(event.x, event.y)
+            }
+
+        }
+        return super.onTouchEvent(event)
+    }*/
+
+    fun imageSegmentation(view: View){
+        var imgMat: Mat = Mat()
+        var mask = Mat()
+        var bgModel = Mat()
+        var fgModel = Mat()
+
+        var selectedBitmap = MediaStore.Images.Media.getBitmap(this.contentResolver, selectedImage)
+        Utils.bitmapToMat(selectedBitmap, imgMat)
+
+        var rect = Rect(initCoords[0].toInt(), initCoords[1].toInt(), finCoords[0].toInt(), finCoords[1].toInt())
+        var source = Mat(1, 1, CvType.CV_8U, Scalar(3.0))
+
+        Imgproc.cvtColor(imgMat, imgMat, Imgproc.COLOR_RGBA2RGB)
+        Imgproc.grabCut(imgMat, mask, rect, bgModel, fgModel, 1, 0)
+        Core.compare(mask, source, mask, Core.CMP_EQ)
+        var fg = Mat(imgMat.size(), CvType.CV_8UC1, Scalar(0.0, 0.0, 0.0))
+        imgMat.copyTo(fg, mask)
+
+        Utils.matToBitmap(fg, selectedBitmap)
+        foreground.setImageBitmap(selectedBitmap)
+
+        /*val h = object : Handler() {
+            override fun handleMessage(msg: Message) {
+                if (msg.what == 0) {
+                    foreground.setImageBitmap(selectedBitmap)
+                    Toast.makeText(view.context, "Dude Nice :D", Toast.LENGTH_LONG).show()
+                } else {
+                    Toast.makeText(view.context, "Fuck", Toast.LENGTH_LONG).show()
+                }
+            }
+        }
+
+        val t = object : Thread() {
+            var success = false
+            override fun run(){
+                Imgproc.cvtColor(imgMat, imgMat, Imgproc.COLOR_RGBA2RGB)
+                Imgproc.grabCut(imgMat, mask, rect, bgModel, fgModel, 1, 0)
+                Core.compare(mask, source, mask, Core.CMP_EQ)
+                var fg = Mat(imgMat.size(), CvType.CV_8UC1, Scalar(0.0, 0.0, 0.0))
+                imgMat.copyTo(fg, mask)
+
+                Utils.matToBitmap(fg, selectedBitmap)
+                success = true
+                h.sendEmptyMessage(0)
+            }
+        }*/
     }
 
 }

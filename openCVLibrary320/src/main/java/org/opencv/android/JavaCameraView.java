@@ -323,7 +323,7 @@ public class JavaCameraView extends CameraBridgeViewBase implements PreviewCallb
         private Mat mRgba;
         private int mWidth;
         private int mHeight;
-    };
+    }
 
     private class CameraWorker implements Runnable {
 
