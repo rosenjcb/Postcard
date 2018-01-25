@@ -31,8 +31,8 @@ class EditActivity : AppCompatActivity() {
     private lateinit var selectedBitmap: Bitmap
     private lateinit var maskBitmap: Bitmap
     private var selectedImage: Uri = Uri.EMPTY
-    private var initCoords = FloatArray(2)
-    private var finCoords = FloatArray(2)
+    private var initCords = FloatArray(2)
+    private var finCords = FloatArray(2)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -51,7 +51,6 @@ class EditActivity : AppCompatActivity() {
         if(intent.hasExtra("uri")){
             selectedImage = intent.getParcelableExtra("uri")
             selectedBitmap = MediaStore.Images.Media.getBitmap(this.contentResolver, selectedImage)
-            maskBitmap = Bitmap.createBitmap(selectedBitmap.width, selectedBitmap.height, Bitmap.Config.ARGB_8888)
             foreground.setImageURI(selectedImage)
             foreground.setOnTouchListener { v, event ->
                 var debugBool = false
@@ -61,10 +60,10 @@ class EditActivity : AppCompatActivity() {
                     MotionEvent.ACTION_DOWN -> {
                         drawView.left = event.x
                         drawView.top = event.y
-                        initCoords = floatArrayOf(event.x, event.y)
+                        initCords = floatArrayOf(event.x, event.y)
                         foreground.imageMatrix.invert(inverse)
                         inverse.postTranslate(foreground.scrollX.toFloat(), foreground.scrollY.toFloat())
-                        inverse.mapPoints(initCoords)
+                        inverse.mapPoints(initCords)
                     }
 
                     MotionEvent.ACTION_MOVE -> {
@@ -75,19 +74,19 @@ class EditActivity : AppCompatActivity() {
                     MotionEvent.ACTION_UP -> {
                         drawView.right = event.x
                         drawView.bottom = event.y
-                        finCoords = floatArrayOf(event.x, event.y)
+                        finCords = floatArrayOf(event.x, event.y)
                         foreground.imageMatrix.invert(inverse)
                         inverse.postTranslate(foreground.scrollX.toFloat(), foreground.scrollY.toFloat())
-                        inverse.mapPoints(finCoords)
+                        inverse.mapPoints(finCords)
                         debugBool = true
                     }
                 }
                 if(debugBool == true) {
-                    Log.d("InitCoordX", initCoords[0].toString())
-                    Log.d("InitCoordY", initCoords[1].toString())
-                    Log.d("FinCoordX", finCoords[0].toString())
-                    Log.d("FinCoordY", finCoords[1].toString())
-                    debugBool = false
+                    Log.d("InitCordX", initCords[0].toString())
+                    Log.d("InitCordY", initCords[1].toString())
+                    Log.d("FinCordX", finCords[0].toString())
+                    Log.d("FinCordY", finCords[1].toString())
+                    //debugBool = false
                 }
                 drawView.invalidate()
                 drawView.drawRect = true
@@ -113,26 +112,28 @@ class EditActivity : AppCompatActivity() {
         }
     }
 
-    fun imageSegmentation(view: View){
-        var imgMat: Mat = Mat()
-        var mask = Mat()
-        var bgModel = Mat()
-        var fgModel = Mat()
+    fun imageSegmentation(){
+        val imgMat: Mat = Mat()
+        val mask = Mat()
+        val bgModel = Mat()
+        val fgModel = Mat()
 
-        Utils.bitmapToMat(selectedBitmap, imgMat)
+        val scaledBitmap = selectedBitmap.resize()
+        maskBitmap = Bitmap.createBitmap(scaledBitmap.width, scaledBitmap.height, Bitmap.Config.ARGB_8888)
+        Utils.bitmapToMat(scaledBitmap, imgMat)
 
-        var rect = Rect(initCoords[0].toInt(), initCoords[1].toInt(), finCoords[0].toInt(), finCoords[1].toInt())
-        var source = Mat(1, 1, CvType.CV_8UC4, Scalar(3.0))
+        val rect = Rect(initCords[0].toInt(), initCords[1].toInt(), finCords[0].toInt(), finCords[1].toInt())
+        val source = Mat(1, 1, CvType.CV_8UC4, Scalar(3.0))
 
         Imgproc.cvtColor(imgMat, imgMat, Imgproc.COLOR_RGBA2RGB)
         Imgproc.grabCut(imgMat, mask, rect, bgModel, fgModel, 3, 0)
         Core.compare(mask, source, mask, Core.CMP_EQ)
-        var fg = Mat(imgMat.size(), CvType.CV_8UC4, Scalar(0.0, 0.0, 0.0))
+        val fg = Mat(imgMat.size(), CvType.CV_8UC4, Scalar(0.0, 0.0, 0.0))
         imgMat.copyTo(fg, mask)
 
-        var dst = Mat(selectedBitmap.width, selectedBitmap.height, CvType.CV_8UC4)
-        var tmp = Mat(selectedBitmap.width, selectedBitmap.height, CvType.CV_8UC4)
-        var alpha = Mat(selectedBitmap.width, selectedBitmap.height, CvType.CV_8UC4)
+        val dst = Mat(scaledBitmap.width, scaledBitmap.height, CvType.CV_8UC4)
+        val tmp = Mat(scaledBitmap.width, scaledBitmap.height, CvType.CV_8UC4)
+        val alpha = Mat(scaledBitmap.width, scaledBitmap.height, CvType.CV_8UC4)
 
         Imgproc.cvtColor(fg, tmp, Imgproc.COLOR_BGR2GRAY)
         Imgproc.threshold(tmp, alpha, 100.0, 255.0, Imgproc.THRESH_BINARY)
@@ -141,13 +142,14 @@ class EditActivity : AppCompatActivity() {
         Core.split(fg, rgb)
 
         val rgba= ArrayList<Mat>(4)
+        //maybe rgb.add(rgb[0])???
         rgba.add(rgb.get(0))
         rgba.add(rgb.get(1))
         rgba.add(rgb.get(2))
         rgba.add(alpha)
         Core.merge(rgba, dst)
 
-        var output = Bitmap.createBitmap(selectedBitmap.width, selectedBitmap.height, Bitmap.Config.ARGB_8888)
+        val output = Bitmap.createBitmap(scaledBitmap.width, scaledBitmap.height, Bitmap.Config.ARGB_8888)
         Utils.matToBitmap(dst, output)
         foreground.setImageBitmap(output)
 

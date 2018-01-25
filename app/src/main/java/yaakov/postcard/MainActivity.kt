@@ -101,17 +101,17 @@ class MainActivity : AppCompatActivity() {
         }*/
     }
 
-    fun loadFromGallery(view: View){
+    fun loadFromGallery(){
         val photoIntent = Intent(Intent.ACTION_PICK, android.provider.MediaStore.Images.Media.EXTERNAL_CONTENT_URI)
         startActivityForResult(photoIntent, RESULT_LOAD_IMG)
     }
 
-    fun loadFromCamera(view: View){
+    fun loadFromCamera(){
         val cameraIntent = Intent(android.provider.MediaStore.ACTION_IMAGE_CAPTURE)
         startActivityForResult(cameraIntent, RESULT_TAKE_PIC)
     }
 
-    fun startEditActivity(view:View){
+    fun startEditActivity(){
         foreground.isDrawingCacheEnabled = true
 
         val i = Intent(this, EditActivity::class.java)
