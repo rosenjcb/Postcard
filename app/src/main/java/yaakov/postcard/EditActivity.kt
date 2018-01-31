@@ -22,6 +22,8 @@ import android.support.v7.widget.AppCompatImageView
 import android.util.AttributeSet
 import android.view.GestureDetector
 import android.widget.Toast
+import org.opencv.core.CvType.CV_8U
+import org.opencv.core.CvType.CV_8UC1
 import org.opencv.core.Mat
 import org.opencv.core.Rect
 
@@ -29,7 +31,6 @@ class EditActivity : AppCompatActivity() {
     private lateinit var mDetector: GestureDetectorCompat
     private lateinit var foreground: DrawImageView
     private lateinit var selectedBitmap: Bitmap
-    private lateinit var maskBitmap: Bitmap
     private var selectedImage: Uri = Uri.EMPTY
     private var initCords = FloatArray(2)
     private var finCords = FloatArray(2)
@@ -55,30 +56,37 @@ class EditActivity : AppCompatActivity() {
             foreground.setOnTouchListener { v, event ->
                 var debugBool = false
                 val drawView = v as DrawImageView
+                //drawView.setMask(selectedBitmap)
                 val inverse = Matrix()
                 when (event.action){
                     MotionEvent.ACTION_DOWN -> {
                         drawView.left = event.x
                         drawView.top = event.y
+                        drawView.touchBegin(event.x, event.y)
                         initCords = floatArrayOf(event.x, event.y)
                         foreground.imageMatrix.invert(inverse)
                         inverse.postTranslate(foreground.scrollX.toFloat(), foreground.scrollY.toFloat())
                         inverse.mapPoints(initCords)
+                        //drawView.invalidate()
                     }
 
                     MotionEvent.ACTION_MOVE -> {
+                        drawView.touchMove(event.x, event.y)
                         drawView.right = event.x
                         drawView.bottom = event.y
+                        //drawView.invalidate()
                     }
 
                     MotionEvent.ACTION_UP -> {
+                        drawView.touchEnd()
                         drawView.right = event.x
                         drawView.bottom = event.y
                         finCords = floatArrayOf(event.x, event.y)
                         foreground.imageMatrix.invert(inverse)
                         inverse.postTranslate(foreground.scrollX.toFloat(), foreground.scrollY.toFloat())
                         inverse.mapPoints(finCords)
-                        debugBool = true
+                        //debugBool = true
+                        //drawView.invalidate()
                     }
                 }
                 if(debugBool == true) {
@@ -89,7 +97,8 @@ class EditActivity : AppCompatActivity() {
                     //debugBool = false
                 }
                 drawView.invalidate()
-                drawView.drawRect = true
+                drawView.drawPath = true
+                //drawView.drawRect = true
                 /*inverse.postTranslate(drawView.x, drawView.y)
                 inverse.mapPoints(initCoords)
                 inverse.mapPoints(finCoords)*/
@@ -112,21 +121,43 @@ class EditActivity : AppCompatActivity() {
         }
     }
 
-    fun imageSegmentation(){
+    fun imageSegmentation(view: View){
         val imgMat: Mat = Mat()
         val mask = Mat()
         val bgModel = Mat()
         val fgModel = Mat()
 
         val scaledBitmap = selectedBitmap.resize()
-        maskBitmap = Bitmap.createBitmap(scaledBitmap.width, scaledBitmap.height, Bitmap.Config.ARGB_8888)
-        Utils.bitmapToMat(scaledBitmap, imgMat)
+        val maskBitmap = Bitmap.createBitmap(selectedBitmap.width, selectedBitmap.height, Bitmap.Config.ARGB_8888)
+        val canvas = Canvas(maskBitmap)
+        canvas.drawPath(foreground.mPath, foreground.currentPaint)
+        val scaledMask = maskBitmap.resize()
 
-        val rect = Rect(initCords[0].toInt(), initCords[1].toInt(), finCords[0].toInt(), finCords[1].toInt())
-        val source = Mat(1, 1, CvType.CV_8UC4, Scalar(3.0))
+        val scaledX = floatArrayOf(initCords[0], finCords[0]).map { (it.toInt() * scaledBitmap.width) / selectedBitmap.width }
+        val scaledY = floatArrayOf(initCords[1], finCords[1]).map { (it.toInt() * scaledBitmap.height) / selectedBitmap.width }
+
+        //foreground.setImageBitmap(scaledBitmap)
+        Log.d("Width = ", selectedBitmap.width.toString())
+        Log.d("Height = ", selectedBitmap.height.toString())
+        Log.d("New Width = ", scaledBitmap.width.toString())
+        Log.d("New Height = ", scaledBitmap.height.toString())
+        Log.d("New Cords = ", scaledX.toString())
+        Log.d("New Cords =", scaledY.toString())
+        Utils.bitmapToMat(scaledBitmap, imgMat)
+        Utils.bitmapToMat(maskBitmap, mask)
+
+        foreground.mPath.reset()
+
+        val rect = Rect()
+        val realRect = Rect(scaledX[0], scaledY[0], scaledX[1], scaledY[1])
+        //val rect = Rect(initCords[0].toInt(), initCords[1].toInt(), finCords[0].toInt(), finCords[1].toInt())
+        val source = Mat(1, 1, CvType.CV_8UC4, Scalar(0.0, 0.0, 0.0))
+
 
         Imgproc.cvtColor(imgMat, imgMat, Imgproc.COLOR_RGBA2RGB)
-        Imgproc.grabCut(imgMat, mask, rect, bgModel, fgModel, 3, 0)
+        //mask.convertTo(mask, CV_8U)
+        //Imgproc.cvtColor(imgMat, mask, Imgproc.COLOR_RGB2GRAY)
+        Imgproc.grabCut(imgMat, mask, rect, bgModel, fgModel, 1, 0) //mode = Imgproc.GC_INIT_WITH_MASK
         Core.compare(mask, source, mask, Core.CMP_EQ)
         val fg = Mat(imgMat.size(), CvType.CV_8UC4, Scalar(0.0, 0.0, 0.0))
         imgMat.copyTo(fg, mask)
@@ -151,7 +182,7 @@ class EditActivity : AppCompatActivity() {
 
         val output = Bitmap.createBitmap(scaledBitmap.width, scaledBitmap.height, Bitmap.Config.ARGB_8888)
         Utils.matToBitmap(dst, output)
-        foreground.setImageBitmap(output)
+        foreground.setImageBitmap(maskBitmap)
 
         /*val h = object : Handler() {
             override fun handleMessage(msg: Message) {

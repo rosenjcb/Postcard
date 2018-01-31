@@ -3,6 +3,7 @@
 package yaakov.postcard
 
 import android.graphics.Bitmap
+import android.util.Log
 
 /**
  * Created by Rosenzweig on 1/23/2018.
@@ -22,9 +23,13 @@ fun Bitmap.resize(image: Bitmap = this, maxWidth: Int = 1920, maxHeight: Int = 1
             } else {
                 finalHeight = (maxWidth.toFloat() / ratioBitmap).toInt()
             }
-            val finalimage = Bitmap.createScaledBitmap(image, finalWidth, finalHeight, true)
-            return finalimage
+           val finalImage = Bitmap.createScaledBitmap(image, finalWidth, finalHeight, true)
+            /*Log.d("fail", finalImage.height.toString())
+            Log.d("fail", finalImage.width.toString())*/
+            return finalImage
         } else {
             return image
+            Log.d("success", image.height.toString())
+            Log.d("success", image.width.toString())
         }
     }
