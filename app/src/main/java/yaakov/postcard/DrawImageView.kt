@@ -18,11 +18,14 @@ class DrawImageView : AppCompatImageView {
     lateinit var mCanvas: Canvas
     var mPaint: Paint
     var mPath: Path
+    var inversePath: Path
     private var MOVEMENT_MINIMUM = 4.0f;
     var drawRect = false
     var drawPath = false
     var mX = 0.0f
     var mY = 0.0f
+    var inverseX = 0.0f
+    var inverseY = 0.0f
     var left = 0.0f
     var right = 0.0f
     var top = 0.0f
@@ -31,22 +34,23 @@ class DrawImageView : AppCompatImageView {
     constructor(context: Context, attrs: AttributeSet) : super(context, attrs) {
         mPaint = Paint()
         mPath = Path()
+        inversePath = Path()
         mPaint.isDither = true
         mPaint.isAntiAlias = true
         mPaint.color = Color.GREEN // alpha.r.g.b
         mPaint.style = Paint.Style.STROKE
         mPaint.strokeJoin = Paint.Join.ROUND
         mPaint.strokeCap = Paint.Cap.ROUND
-        mPaint.strokeWidth = 20.0f
+        mPaint.strokeWidth = 80.0f
 
         currentPaint = Paint()
         currentPath = Path()
         currentPaint.isAntiAlias = true
-        currentPaint.color = Color.BLACK
+        currentPaint.color = Color.WHITE
         currentPaint.style = Paint.Style.STROKE
         currentPaint.strokeJoin = Paint.Join.ROUND
         currentPaint.strokeCap = Paint.Cap.ROUND
-        currentPaint.strokeWidth = 20.0f
+        currentPaint.strokeWidth = 80.0f
     }
 
     override fun performClick(): Boolean {
@@ -66,30 +70,57 @@ class DrawImageView : AppCompatImageView {
         }
     }
 
-    fun touchBegin(x: Float, y: Float){
+    fun touchBegin(x: Float, y: Float, isMask: Boolean){
         //mPath.reset()
-        mPath.moveTo(x, y)
-        mX = x
-        mY = y
-    }
+        if(isMask) {
+            inversePath.moveTo(x, y)
+            inverseX = x
+            inverseY = y
+        }
 
-    fun touchMove(x: Float, y: Float){
-        var dx = Math.abs(x - mX)
-        var dy = Math.abs(y - mY)
-
-        if (dx >= MOVEMENT_MINIMUM || dy >= MOVEMENT_MINIMUM) {
-            mPath.quadTo(mX, mY, (x+ mX)/2, (y+mY)/2)
+        else {
+            mPath.moveTo(x, y)
             mX = x
             mY = y
-
-            //currentPath.reset()
-            //currentPath.addCircle(mX, mY, 30.0f, Path.Direction.CW)
         }
     }
 
-    fun touchEnd() {
-        mPath.lineTo(mX, mY)
-        //mPath.reset()
+    fun touchMove(x: Float, y: Float, isMask: Boolean){
+        if(isMask) {
+            var dx = Math.abs(x - inverseX)
+            var dy = Math.abs(y - inverseY)
+
+            if (dx >= MOVEMENT_MINIMUM || dy >= MOVEMENT_MINIMUM) {
+                inversePath.quadTo(inverseX, inverseY, (x + inverseX) / 2, (y + inverseY) / 2)
+                inverseX = x
+                inverseY = y
+            }
+        }
+
+        else {
+            var dx = Math.abs(x - mX)
+            var dy = Math.abs(y - mY)
+
+            if (dx >= MOVEMENT_MINIMUM || dy >= MOVEMENT_MINIMUM) {
+                mPath.quadTo(mX, mY, (x + mX) / 2, (y + mY) / 2)
+                mX = x
+                mY = y
+
+                //currentPath.reset()
+                //currentPath.addCircle(mX, mY, 30.0f, Path.Direction.CW)
+            }
+        }
+    }
+
+    fun touchEnd(isMask: Boolean) {
+        if(isMask) {
+            inversePath.lineTo(inverseX, inverseY)
+        }
+
+        else {
+            mPath.lineTo(mX, mY)
+            //mPath.reset()
+        }
     }
 
     class GestureListener : GestureDetector.SimpleOnGestureListener(){

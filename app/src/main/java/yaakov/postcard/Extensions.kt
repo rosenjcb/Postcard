@@ -3,6 +3,7 @@
 package yaakov.postcard
 
 import android.graphics.Bitmap
+import android.graphics.Rect
 import android.util.Log
 
 /**
