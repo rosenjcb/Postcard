@@ -6,6 +6,19 @@
     android:layout_height="match_parent"
     tools:context="yaakov.postcard.EditActivity">
 
+    <ImageView
+        android:id="@+id/background"
+        android:layout_width="0dp"
+        android:layout_height="463dp"
+        android:layout_marginTop="8dp"
+        android:scaleType="fitCenter"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintLeft_toLeftOf="parent"
+        app:layout_constraintRight_toRightOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/testSegment"
+        app:layout_constraintVertical_bias="0.094"
+        app:srcCompat="@android:color/background_light" />
+
     <yaakov.postcard.DrawImageView
         android:id="@+id/foreground"
         android:layout_width="0dp"

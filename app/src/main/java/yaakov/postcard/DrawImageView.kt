@@ -1,10 +1,12 @@
 package yaakov.postcard
 
 import android.content.Context
+import android.gesture.Gesture
 import android.graphics.*
 import android.support.v4.view.GestureDetectorCompat
 import android.support.v7.widget.AppCompatImageView
 import android.util.AttributeSet
+import android.util.Log
 import android.view.GestureDetector
 import android.view.MotionEvent
 
@@ -13,25 +15,19 @@ import android.view.MotionEvent
  */
 class DrawImageView : AppCompatImageView {
     var currentPaint: Paint
-    var currentPath: Path
-    lateinit var maskBitmap: Bitmap
-    lateinit var mCanvas: Canvas
-    var mPaint: Paint
+    private var mPaint: Paint
+    lateinit var gestureDetector: GestureDetector
     var mPath: Path
     var inversePath: Path
     private var MOVEMENT_MINIMUM = 4.0f;
-    var drawRect = false
     var drawPath = false
-    var mX = 0.0f
-    var mY = 0.0f
-    var inverseX = 0.0f
-    var inverseY = 0.0f
-    var left = 0.0f
-    var right = 0.0f
-    var top = 0.0f
-    var bottom = 0.0f
+    private var mX = 0.0f
+    private var mY = 0.0f
+    private var inverseX = 0.0f
+    private var inverseY = 0.0f
 
     constructor(context: Context, attrs: AttributeSet) : super(context, attrs) {
+        gestureDetector = GestureDetector(context, GestureListener())
         mPaint = Paint()
         mPath = Path()
         inversePath = Path()
@@ -44,7 +40,7 @@ class DrawImageView : AppCompatImageView {
         mPaint.strokeWidth = 80.0f
 
         currentPaint = Paint()
-        currentPath = Path()
+        currentPaint.isDither = true
         currentPaint.isAntiAlias = true
         currentPaint.color = Color.WHITE
         currentPaint.style = Paint.Style.STROKE
@@ -65,10 +61,11 @@ class DrawImageView : AppCompatImageView {
             //mCanvas.drawPath(mPath, currentPaint)
             //canvas.drawPath(currentPath, currentPaint)
         }
-        if (drawRect) {
-            canvas.drawRect(left, top, right, bottom, mPaint)
+        if (!drawPath) {
+            canvas.scale(1.0f, 1.0f)
         }
     }
+
 
     fun touchBegin(x: Float, y: Float, isMask: Boolean){
         //mPath.reset()
@@ -87,8 +84,8 @@ class DrawImageView : AppCompatImageView {
 
     fun touchMove(x: Float, y: Float, isMask: Boolean){
         if(isMask) {
-            var dx = Math.abs(x - inverseX)
-            var dy = Math.abs(y - inverseY)
+            val dx = Math.abs(x - inverseX)
+            val dy = Math.abs(y - inverseY)
 
             if (dx >= MOVEMENT_MINIMUM || dy >= MOVEMENT_MINIMUM) {
                 inversePath.quadTo(inverseX, inverseY, (x + inverseX) / 2, (y + inverseY) / 2)
@@ -98,8 +95,8 @@ class DrawImageView : AppCompatImageView {
         }
 
         else {
-            var dx = Math.abs(x - mX)
-            var dy = Math.abs(y - mY)
+            val dx = Math.abs(x - mX)
+            val dy = Math.abs(y - mY)
 
             if (dx >= MOVEMENT_MINIMUM || dy >= MOVEMENT_MINIMUM) {
                 mPath.quadTo(mX, mY, (x + mX) / 2, (y + mY) / 2)
@@ -123,8 +120,14 @@ class DrawImageView : AppCompatImageView {
         }
     }
 
+    override fun onTouchEvent(event: MotionEvent?): Boolean {
+        return super.onTouchEvent(event)
+    }
+
     class GestureListener : GestureDetector.SimpleOnGestureListener(){
         override fun onDoubleTap(e: MotionEvent): Boolean {
+            Log.w("hi", "hi")
+            Log.d("hi", e.x.toString())
             return true
         }
     }

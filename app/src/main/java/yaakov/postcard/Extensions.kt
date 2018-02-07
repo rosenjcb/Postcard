@@ -10,7 +10,7 @@ import android.util.Log
  * Created by Rosenzweig on 1/23/2018.
  */
 
-fun Bitmap.resize(image: Bitmap = this, maxWidth: Int = 1920, maxHeight: Int = 1080): Bitmap {
+fun Bitmap.resize(image: Bitmap = this, maxWidth: Int = 1280, maxHeight: Int = 720): Bitmap {
         if (maxHeight > 0 && maxWidth > 0) {
             val width = image.getWidth()
             val height = image.getHeight()
